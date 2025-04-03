@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Job } from '../features/jobs/jobsSlice';
+import { Job } from '../features/types';
 
 interface JobCardProps {
   job: Job;

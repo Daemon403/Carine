@@ -15,7 +15,6 @@ const BidForm: React.FC<BidFormProps> = ({
 }) => {
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    // Allow only numbers and decimal point
     if (/^\d*\.?\d*$/.test(value)) {
       setBidAmount(value);
     }

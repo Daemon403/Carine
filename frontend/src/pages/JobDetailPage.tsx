@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../app/hooks';
-import selectAllJobs, {selectCurrentUser } from '../features/auth/authSlice';
+import { selectCurrentUser } from '../features/auth/authSlice';
+import { selectAllJobs } from '../features/jobs/jobsSlice';
 import { placeBid, acceptBid } from '../features/jobs/jobsSlice';
 import BidForm from '../components/BidForm';
 import BidList from '../components/BidList';
+import { ApiError } from '../features/types';
 
 const JobDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -45,7 +47,7 @@ const JobDetailPage: React.FC = () => {
     .then(() => {
       setBidAmount('');
     })
-    .catch((error) => {
+    .catch((error: ApiError) => {
       console.error('Failed to place bid:', error);
       alert(`Failed to place bid: ${error.message}`);
     });
@@ -65,7 +67,7 @@ const JobDetailPage: React.FC = () => {
     .then(() => {
       alert('Bid accepted successfully! The artisan has been notified.');
     })
-    .catch((error) => {
+    .catch((error: ApiError) => {
       console.error('Failed to accept bid:', error);
       alert(`Failed to accept bid: ${error.message}`);
     });
@@ -73,10 +75,19 @@ const JobDetailPage: React.FC = () => {
 
   return (
     <div className="max-w-2xl mx-auto p-4">
-      {/* Job details section */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <h1 className="text-2xl font-bold mb-2 text-gray-800">{job.title}</h1>
         <p className="text-gray-700 mb-4">{job.description}</p>
+        
+        {job.requiredSkills && job.requiredSkills.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {job.requiredSkills.map(skill => (
+              <span key={skill} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                {skill}
+              </span>
+            ))}
+          </div>
+        )}
         
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
@@ -96,7 +107,6 @@ const JobDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Bid form (only for artisans when job is open) */}
       {user?.role === 'artisan' && job.status === 'open' && (
         <div className="mb-8">
           <BidForm 
@@ -110,7 +120,6 @@ const JobDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* Bid list */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-xl font-semibold mb-4 text-gray-800">
           Bids ({job.bids.length})

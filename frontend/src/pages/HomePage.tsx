@@ -1,23 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { selectAllJobs, selectJobsStatus } from '../features/jobs/jobsSlice';
 import { fetchJobs } from '../features/jobs/jobsSlice';
 import JobCard from '../components/JobCard';
 import FilterBar from '../components/FilterBar';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { RootState } from '../app/store';
-import Job  from '../features/jobs/jobsSlice';
+import { Job } from '../features/types';
 
 const HomePage: React.FC = () => {
-  const dispatch = useDispatch();
-  const jobs = useSelector((state: RootState) => selectAllJobs(state));
-  const status = useSelector((state: RootState) => selectJobsStatus(state));
+  const dispatch = useAppDispatch();
+  const jobs = useAppSelector(selectAllJobs);
+  const status = useAppSelector(selectJobsStatus);
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [skillFilter, setSkillFilter] = useState<string[]>([]);
-  const [radiusFilter, setRadiusFilter] = useState<number>(10); // Default 10km radius
+  const [radiusFilter, setRadiusFilter] = useState<number>(10);
+  const [error, setError] = useState<string | null>(null);
 
-  // Available skills for filter
   const availableSkills = [
     'welding',
     'plumbing',
@@ -27,18 +26,25 @@ const HomePage: React.FC = () => {
     'painting'
   ];
 
-  // Fetch jobs on component mount
   useEffect(() => {
-    // In a real app, you would get user's location first
-    const defaultLocation = { lng: -0.2, lat: 5.6 }; // Default to Accra coordinates
-    dispatch(fetchJobs(defaultLocation));
+    const fetchJobsData = async () => {
+      try {
+        setError(null);
+        const defaultLocation = { lng: -0.2, lat: 5.6 };
+        await dispatch(fetchJobs(defaultLocation)).unwrap();
+      } catch (err) {
+        setError('Failed to load jobs. Please try again later.');
+        console.error('Failed to fetch jobs:', err);
+      }
+    };
+
+    fetchJobsData();
   }, [dispatch]);
 
-  // Apply filters whenever jobs, search term, or filters change
   useEffect(() => {
     let results = [...jobs];
 
-    // Apply search term filter
+    // Search term filter
     if (searchTerm) {
       results = results.filter(job =>
         job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -46,16 +52,15 @@ const HomePage: React.FC = () => {
       );
     }
 
-    // Apply skill filter
+    // Skill filter - now handles undefined requiredSkills
     if (skillFilter.length > 0) {
       results = results.filter(job => 
+        job.requiredSkills && 
         skillFilter.some(skill => 
-          job.requiredSkills?.includes(skill)
-      );
+          job.requiredSkills.includes(skill)
+      ));
     }
 
-    // Note: Location radius filtering would be done in the backend API call
-    // This is just frontend representation of filtered jobs
     setFilteredJobs(results);
   }, [jobs, searchTerm, skillFilter, radiusFilter]);
 
@@ -65,6 +70,11 @@ const HomePage: React.FC = () => {
         ? prev.filter(s => s !== skill)
         : [...prev, skill]
     );
+  };
+
+  const handleRetry = () => {
+    const defaultLocation = { lng: -0.2, lat: 5.6 };
+    dispatch(fetchJobs(defaultLocation));
   };
 
   return (
@@ -77,7 +87,6 @@ const HomePage: React.FC = () => {
           </p>
         </div>
 
-        {/* Filter Bar */}
         <FilterBar 
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
@@ -88,20 +97,24 @@ const HomePage: React.FC = () => {
           setRadius={setRadiusFilter}
         />
 
-        {/* Status Info */}
         {status === 'loading' && (
           <div className="flex justify-center my-8">
             <LoadingSpinner />
           </div>
         )}
 
-        {status === 'failed' && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            Failed to load jobs. Please try again later.
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 flex justify-between items-center">
+            <span>{error}</span>
+            <button 
+              onClick={handleRetry}
+              className="ml-4 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded"
+            >
+              Retry
+            </button>
           </div>
         )}
 
-        {/* Results Count */}
         <div className="mb-4 flex justify-between items-center">
           <h2 className="text-lg font-semibold text-gray-700">
             {filteredJobs.length} {filteredJobs.length === 1 ? 'Job' : 'Jobs'} Available
@@ -111,7 +124,6 @@ const HomePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Jobs List */}
         {status === 'succeeded' && filteredJobs.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-6 text-center">
             <h3 className="text-lg font-medium text-gray-800 mb-2">No jobs found</h3>

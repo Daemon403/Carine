@@ -1,9 +1,9 @@
-import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
-import { RootState } from '../../app/store';
+import { User, ApiError } from '../types';
 
 interface AuthState {
-  user: null | { id: string; email: string; role: string };
+  user: User | null;
   token: string | null;
   status: 'idle' | 'loading' | 'succeeded' | 'failed';
   error: string | null;
@@ -16,19 +16,33 @@ const initialState: AuthState = {
   error: null
 };
 
-export const register = createAsyncThunk(
+export const registerUser = createAsyncThunk(
   'auth/register',
-  async (credentials: { email: string; password: string; role: string }) => {
-    const response = await axios.post('/api/auth/register', credentials);
-    return response.data;
+  async (credentials: { email: string; password: string; role: string; name:string }, { rejectWithValue }) => {
+    try {
+      const response = await axios.post('/api/auth/register', credentials);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        return rejectWithValue(error.response?.data as ApiError);
+      }
+      return rejectWithValue({ message: 'An unknown error occurred' } as ApiError);
+    }
   }
 );
 
-export const login = createAsyncThunk(
+export const loginUser = createAsyncThunk(
   'auth/login',
-  async (credentials: { email: string; password: string }) => {
-    const response = await axios.post('/api/auth/login', credentials);
-    return response.data;
+  async (credentials: { email: string; password: string }, { rejectWithValue }) => {
+    try {
+      const response = await axios.post('/api/auth/login', credentials);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        return rejectWithValue(error.response?.data as ApiError);
+      }
+      return rejectWithValue({ message: 'An unknown error occurred' } as ApiError);
+    }
   }
 );
 
@@ -39,40 +53,44 @@ const authSlice = createSlice({
     logout: (state) => {
       state.user = null;
       state.token = null;
+      state.status = 'idle';
+      state.error = null;
     }
   },
   extraReducers: (builder) => {
     builder
-      .addCase(register.pending, (state) => {
+      .addCase(registerUser.pending, (state) => {
         state.status = 'loading';
+        state.error = null;
       })
-      .addCase(register.fulfilled, (state, action) => {
+      .addCase(registerUser.fulfilled, (state, action: PayloadAction<{ user: User; token: string }>) => {
         state.status = 'succeeded';
         state.user = action.payload.user;
         state.token = action.payload.token;
       })
-      .addCase(register.rejected, (state, action) => {
+      .addCase(registerUser.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.error.message || 'Registration failed';
+        state.error = (action.payload as ApiError).message || 'Registration failed';
       })
-      .addCase(login.pending, (state) => {
+      .addCase(loginUser.pending, (state) => {
         state.status = 'loading';
+        state.error = null;
       })
-      .addCase(login.fulfilled, (state, action) => {
+      .addCase(loginUser.fulfilled, (state, action: PayloadAction<{ user: User; token: string }>) => {
         state.status = 'succeeded';
         state.user = action.payload.user;
         state.token = action.payload.token;
       })
-      .addCase(login.rejected, (state, action) => {
+      .addCase(loginUser.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.error.message || 'Login failed';
+        state.error = (action.payload as ApiError).message || 'Login failed';
       });
   }
 });
 
 export const { logout } = authSlice.actions;
-
-export const selectCurrentUser = (state: RootState) => state.auth.user;
-export const selectAuthToken = (state: RootState) => state.auth.token;
-
+export const selectCurrentUser = (state: { auth: AuthState }) => state.auth.user;
+export const selectAuthToken = (state: { auth: AuthState }) => state.auth.token;
+export const selectAuthStatus = (state: { auth: AuthState }) => state.auth.status;
+export const selectAuthError = (state: { auth: AuthState }) => state.auth.error; 
 export default authSlice.reducer;

@@ -17,7 +17,6 @@ interface BidListProps {
 }
 
 const BidList: React.FC<BidListProps> = ({ bids, currentUserId, onAcceptBid }) => {
-  // Sort bids by amount (ascending) and then by date (newest first)
   const sortedBids = [...bids].sort((a, b) => {
     if (a.amount !== b.amount) {
       return a.amount - b.amount;
